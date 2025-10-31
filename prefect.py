@@ -45,7 +45,9 @@ def populate_queue() -> str:
 @task(retries=3, retry_delay_seconds=10)
 def get_queue_attributes(sqs_url: str) -> Dict[str, int]:
     """Get queue attributes to monitor message counts."""
-    attrs = sqs.get_queue_attributes(QueueUrl=sqs_url, AttributeNames=["All"]).get(
+    attrs = sqs.get_queue_attributes(
+        QueueUrl=sqs_url, AttributeNames=["All"]
+    ).get(  # get the attributes from sqs_url
         "Attributes", {}
     )
     keys = [  # proper keys
@@ -63,7 +65,7 @@ def _parse_word_message(msg: Dict[str, Any]) -> Tuple[int, str]:
         (k or "").lower(): (v.get("StringValue") if isinstance(v, dict) else None)
         for k, v in attrs.items()
     }
-
+    # populate body with messages
     body = (msg.get("Body") or "").strip()
 
     # Try to parse JSON body if present
@@ -110,6 +112,7 @@ def _parse_word_message(msg: Dict[str, Any]) -> Tuple[int, str]:
         or body
     )
     word = (word or "").strip()
+    # error handling
     if not word:
         raise ValueError(
             f"Empty word for order_no={order_no}; attrs={attrs}, body={body!r}"
@@ -132,16 +135,16 @@ def collect_all_messages(sqs_url: str, expected: int = 21) -> List[Tuple[int, st
     while len(pairs) < expected:
         resp = sqs.receive_message(
             QueueUrl=sqs_url,
-            AttributeNames=["All"],
+            AttributeNames=["All"],  # gather all
             MessageAttributeNames=["All"],
             MaxNumberOfMessages=10,  # SQS max
             VisibilityTimeout=30,
             WaitTimeSeconds=10,  # long poll
         )
-        msgs = resp.get("Messages", [])
+        msgs = resp.get("Messages", [])  # get messages
 
         """
-        error handing for empty polls
+        If no messages, increment empty poll count and check if we should continue
         """
         if not msgs:
             empty_polls += 1
@@ -216,6 +219,7 @@ def send_solution(uvaid: str, phrase: str, platform: str = "prefect") -> None:
         logger.info(f"Solution submitted successfully: {response}")
         print(f"Response: {response}")
 
+    # error handling
     except Exception as e:
         logger.error(f"Error submitting solution: {e}")
         print(f"Error: {e}")
