@@ -83,7 +83,7 @@ def _parse_word_message(msg: Dict[str, Any]) -> Tuple[int, str]:
         or str_attrs.get("index")
         or str_attrs.get("position")
         or (
-            body_json
+            body_jsonF
             and (
                 body_json.get("order_no")
                 or body_json.get("order")
@@ -187,6 +187,15 @@ def collect_all_messages(sqs_url: str, expected: int = 21) -> List[Tuple[int, st
 
 
 @task
+def persist_pairs(pairs):
+    import json, os
+
+    os.makedirs("data", exist_ok=True)
+    with open("data/parsed_pairs.json", "w") as f:
+        json.dump([{"order": o, "word": w} for o, w in pairs], f)
+
+
+@task
 def assemble_phrase(pairs: List[Tuple[int, str]]) -> str:
     """
     Task 3 (part 1): Sort by order_no and join words.
@@ -241,13 +250,17 @@ def main():
     pairs = collect_all_messages(queue_url, expected=21)
     logger.info(f"Collected {len(pairs)} word pairs")
 
+    # save parirs to file
+    path = persist_pairs(pairs)
+    logger.info(f"Persisted parsed pairs to {path}")
+
     # Task 3: Assemble the phrase
     logger.info("=== TASK 3: Assembling phrase ===")
     phrase = assemble_phrase(pairs)
     logger.info(f"ASSEMBLED PHRASE: {phrase}")
 
     # Task 3: Submit the solution
-    logger.info("=== TASK 3: Submitting solution ===")
+    logger.info("=== TASK 4: Submitting solution ===")
     send_solution(uvaid, phrase, platform="prefect")
 
     logger.info("=== COMPLETE ===")

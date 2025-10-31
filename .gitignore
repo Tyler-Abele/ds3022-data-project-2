@@ -1,0 +1,7 @@
+# Data and persistent outputs
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.json
+*.csv
